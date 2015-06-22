@@ -24,6 +24,17 @@ function main() {
    var mUnit = new pixelcollision.Mask(unit);
    var mSpear = new pixelcollision.Mask(spear);
 
+   function Seta(x,y){
+   		this.x = x;
+   		this.y = y;
+   }
+
+   // cria as setas (um vetor de Seta)
+   var setas = []
+   setas[0] = new Seta(90, 130);
+   setas[1] = new Seta(20, 190);
+   
+
    var unitPosition = [20, 20];
    var spearPosition = [6, 0];
 
@@ -46,13 +57,19 @@ function main() {
 
    gamejs.event.onMouseMotion(function(event) {
       if (display.rect.collidePoint(event.pos)) {
-         spearPosition = $v.subtract(event.pos, spear.getSize());
+      	var spear2 = $v.divide(spear.getSize(),2);
+         spearPosition = $v.subtract(event.pos, spear2);
       }
    });
 
    gamejs.onTick(function() {
       // draw
       display.clear();
+      for (var i = 0; i < setas.length; i++) {
+      	setas[i].x += 1;
+      	display.blit(spear, [setas[i].x,setas[i].y]);
+
+      };
       display.blit(unit, unitPosition);
       display.blit(spear, spearPosition);
       // collision
