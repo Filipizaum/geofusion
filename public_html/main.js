@@ -13,10 +13,11 @@ var gamejs = require('gamejs');
 var pixelcollision = require('gamejs/pixelcollision');
 var $v = require('gamejs/math/vectors');
 
+
 function main() {
 
    var display = gamejs.display.getSurface();
-   console.log(display.getRect().width)
+   console.log(display.getRect().width);
    var spear = gamejs.image.load('./spear.png');
    var unit = gamejs.image.load('./unit.png');
 
@@ -30,7 +31,7 @@ function main() {
    }
 
    // cria as setas (um vetor de Seta)
-   var setas = []
+   var setas = [];
    setas[0] = new Seta(90, 130);
    setas[1] = new Seta(20, 190);
    
@@ -45,6 +46,7 @@ function main() {
    direction[gamejs.event.K_DOWN] = [0, 1];
    direction[gamejs.event.K_LEFT] = [-1, 0];
    direction[gamejs.event.K_RIGHT] = [1, 0];
+   
    gamejs.event.onKeyUp(function(event) {
 
    });
@@ -53,13 +55,31 @@ function main() {
       if (delta) {
          spearPosition = $v.add(spearPosition, delta);
       }
-   })
+   });
 
    gamejs.event.onMouseMotion(function(event) {
       if (display.rect.collidePoint(event.pos)) {
       	var spear2 = $v.divide(spear.getSize(),2);
          spearPosition = $v.subtract(event.pos, spear2);
+         console.log("mouse se moveu");
+             console.log(typeof event.button);
+         if(event.button === 1){
+                console.log("ok");
+         }
+           spearPosition = $v.subtract(event.pos, spear.getSize());
       }
+   });
+   
+   gamejs.event.onMouseDown(function (event) {
+       if (event){
+          
+       }
+   });
+
+    gamejs.event.onMouseUp(function (event) {
+       if (event){
+          
+       }
    });
 
    gamejs.onTick(function() {
@@ -85,6 +105,6 @@ function main() {
 
 gamejs.preload([
    './spear.png',
-   './unit.png',
+   './unit.png'
 ]);
 gamejs.ready(main);
