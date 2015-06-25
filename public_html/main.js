@@ -2,8 +2,8 @@
  * @fileoverview
  * Demonstrates pixel perfect collision detection utilizing image masks.
  *
- * A 'spear' is moved around with mouse or cursors keys - the text 'COLLISION'
- * appears if the spear pixel collides with the unit.
+ * A 'img' is moved around with mouse or cursors keys - the text 'COLLISION'
+ * appears if the img pixel collides with the unit.
  *
  * gamejs.mask.fromSurface is used to create two pixel masks
  * that do the actual collision detection.
@@ -13,98 +13,148 @@ var gamejs = require('gamejs');
 var pixelcollision = require('gamejs/pixelcollision');
 var $v = require('gamejs/math/vectors');
 
-
 function main() {
 
-   var display = gamejs.display.getSurface();
-   console.log(display.getRect().width);
-   var spear = gamejs.image.load('./spear.png');
-   var unit = gamejs.image.load('./unit.png');
+    var display = gamejs.display.getSurface();
 
-   // create image masks from surface
-   var mUnit = new pixelcollision.Mask(unit);
-   var mSpear = new pixelcollision.Mask(spear);
+    var btAdd = gamejs.image.load('./img/btnadd.png');
+    // create image masks from surface
 
-   function Seta(x,y){
-   		this.x = x;
-   		this.y = y;
-   }
+    var mBtAdd = new pixelcollision.Mask(btAdd);
+    
 
-   // cria as setas (um vetor de Seta)
-   var setas = [];
-   setas[0] = new Seta(90, 130);
-   setas[1] = new Seta(20, 190);
-   
+    var btAddPos = [10,10];
+    var font = new gamejs.font.Font('20px monospace');
+    var dragging = false;
+	var geoDrag;
+    var lastMousePos = [];
+    var geos = [];
+    var tipos = []
+	
+	
+	var fusoes = [];
+	
+	fusoes [0] = 'a';
+	
+	
+	
+	
+    /**
+     * tipos geometricos
+     */
+    function Tipo(nome, img) {
+        this.nome = nome;
+        this.img = gamejs.image.load(img);
+    }
 
-   var unitPosition = [20, 20];
-   var spearPosition = [6, 0];
+    /**
+     * formas geometricas
+     */
+    function Geo(x, y, tipo) {
+        this.x = x;
+        this.y = y;
+        this.tipo = tipo;
+		
+		this.posCollideRect = function(pos){
+			
+			// Creates a retctangle at image position and size
+			var rect = new gamejs.Rect([this.x, this.y], this.tipo.img.getSize());
+			
+			// If mouse is inside rect
+			if (rect.collidePoint(pos)) {
+				return true;
+			}else{
+				return false;
+			}
+			
+		}
+		
+		this.posCollideMask = function(pos){
+			// If the pos is inside the rect
+			if(this.posCollideRect(pos)){
+				// Calc mouse relative position to image
+				var relative = $v.subtract(pos, [this.x, this.y]);
+				// If the mask haves active pixel at position
+				if ((new pixelcollision.Mask(this.tipo.img)).getAt(relative[0], relative[1])) {
+					return true;
+				}else{
+					// If does not collides the mask
+					return false;
+				}
+			}else{
+				// If isn't inside the rect
+				return false;
+			}
+		}
+        
+    }
 
-   var font = new gamejs.font.Font('20px monospace');
-
-   var direction = {};
-   direction[gamejs.event.K_UP] = [0, -1];
-   direction[gamejs.event.K_DOWN] = [0, 1];
-   direction[gamejs.event.K_LEFT] = [-1, 0];
-   direction[gamejs.event.K_RIGHT] = [1, 0];
-   
-   gamejs.event.onKeyUp(function(event) {
-
-   });
-   gamejs.event.onKeyDown(function(event) {
-      var delta = direction[event.key];
-      if (delta) {
-         spearPosition = $v.add(spearPosition, delta);
-      }
-   });
-
-   gamejs.event.onMouseMotion(function(event) {
-      if (display.rect.collidePoint(event.pos)) {
-      	var spear2 = $v.divide(spear.getSize(),2);
-         spearPosition = $v.subtract(event.pos, spear2);
-         console.log("mouse se moveu");
-             console.log(typeof event.button);
-         if(event.button === 1){
-                console.log("ok");
-         }
-           spearPosition = $v.subtract(event.pos, spear.getSize());
-      }
-   });
-   
-   gamejs.event.onMouseDown(function (event) {
-       if (event){
-          
-       }
-   });
-
+    tipos[0] = new Tipo("novo",'./geos/tri.png');
+    
+    
+    gamejs.event.onMouseDown(function (event) {
+		var StopBreak = {};
+		
+		try{
+			//geos.forEach(function(geo, i){
+			for(var i = geos.length-1 ; i>= 0; i--){
+				// If the first geo collides the cursor
+				if(geos[i].posCollideMask(event.pos)){
+					dragging = true;
+					lastMousePos = event.pos;
+					geoDrag = i;
+					throw StopBreak;
+				}else{
+					dragging = false;
+				}
+			};
+		}
+		catch(e){
+		}
+		
+		// Event Button add On click
+        var buttonAdd = new gamejs.Rect([btAddPos[0],btAddPos[1]],btAdd.getSize());
+        if (buttonAdd.collidePoint(event.pos)){
+            var relative = $v.subtract(event.pos, [btAddPos[0],btAddPos[1]]);
+            if (mBtAdd.getAt(relative[0],relative[1])){
+               geos[geos.length] = new Geo(Math.floor(Math.random()*50),Math.floor(Math.random()*50),tipos[0]);
+            }
+        }
+    });
+    
     gamejs.event.onMouseUp(function (event) {
-       if (event){
-          
-       }
-   });
+        dragging = false;
+    });
 
-   gamejs.onTick(function() {
-      // draw
-      display.clear();
-      for (var i = 0; i < setas.length; i++) {
-      	setas[i].x += 1;
-      	display.blit(spear, [setas[i].x,setas[i].y]);
+    gamejs.event.onMouseMotion(function (event) {
+        if (dragging) {
+			console.log("esta arrastando");
+            if ((event.pos[0] !== lastMousePos[0]) || (event.pos[1] !== lastMousePos[1])) {
+                geos[geoDrag].x += event.pos[0] - lastMousePos[0];
+                geos[geoDrag].y += event.pos[1] - lastMousePos[1];
+            }
+            lastMousePos = event.pos;
+        }
+    });
 
-      };
-      display.blit(unit, unitPosition);
-      display.blit(spear, spearPosition);
-      // collision
-      // the relative offset is automatically calculated by
-      // the higher-level gamejs.sprite.collideMask(spriteA, spriteB)
-      var relativeOffset = $v.subtract(spearPosition, unitPosition);
-      var hasMaskOverlap = mUnit.overlap(mSpear, relativeOffset);
-      if (hasMaskOverlap) {
-         display.blit(font.render('COLLISION', '#ff0000'), [250, 50]);
-      }
-   });
-};
+
+    gamejs.onTick(function () {
+        // draw
+        display.clear();
+        geos.forEach(function (a, i){
+            display.blit(a.tipo.img, [a.x,a.y]);
+        });
+
+        display.blit(btAdd, btAddPos);
+        if (dragging) {
+            display.blit(font.render("Dragging the image", '#ff0000'), [300, 20]);
+        }
+    });
+}
+;
 
 gamejs.preload([
-   './spear.png',
-   './unit.png'
+    './geos/tri.png',
+    './img/btnadd.png'
 ]);
 gamejs.ready(main);
