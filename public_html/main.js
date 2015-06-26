@@ -23,7 +23,7 @@ function main() {
     var mBtAdd = new pixelcollision.Mask(btAdd);
     
 
-    var btAddPos = [10,10];
+    var btAddPos = [30,30];
     var font = new gamejs.font.Font('20px monospace');
     var dragging = false;
 	var geoDrag;
@@ -139,13 +139,25 @@ function main() {
 
 
     gamejs.onTick(function () {
-        // draw
+        // Limpa a tela
         display.clear();
+		
+		// Pinta o fundo na tela
+		gamejs.graphics.rect(display, "#eeeefc", (new gamejs.Rect([0, 0], display.getSize())));
+		
+		// Para cara geos, pinta na sua posição
         geos.forEach(function (a, i){
             display.blit(a.tipo.img, [a.x,a.y]);
         });
-
+		
+		// Pinta as bordas que ficam acima das formas
+		var bSize = 4;
+		gamejs.graphics.rect(display, "#cecedc", (new gamejs.Rect([bSize, bSize], [display.getSize()[0]-2*bSize,display.getSize()[1]-2*bSize])), 2*bSize);
+		
+		// Mostra o botão de adicionar
         display.blit(btAdd, btAddPos);
+		
+		// Se está segurando alguma forma, mostra um texto
         if (dragging) {
             display.blit(font.render("Dragging the image", '#ff0000'), [300, 20]);
         }
