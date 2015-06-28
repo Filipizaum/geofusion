@@ -29,19 +29,26 @@ function main() {
     var font = new gamejs.font.Font('20px monospace');
     var dragging = false;
     var dragObject;
-    var mouseOriginClick;
 	var geoDrag;
     var lastMousePos = [];
     var geos = [];
     var tipos = [];
+    var botoes = [];
 	
 	
 	var fusoes = [];
 	
 	fusoes [0] = 'a';
-	
-	
-	
+
+    // --- MODEL
+
+    // Declara os tipos	
+    tipos[0] = new Tipo("novo",'./geos/tri.png');
+    tipos[1] = new Tipo("novo",'./geos/square.png');
+
+    // Posiciona os botões
+    botoes[0] = new Botao(30, 30, './img/btnadd.png');
+    botoes[1] = new Botao(110, 30, './img/btnadd.png');
 	
     /**
      * tipos geometricos
@@ -73,10 +80,10 @@ function main() {
         };
 		
 		this.posCollideRect = function(pos){
-			// Creates a retctangle at image position and size
+			// Cria um retângulo na posição Relativa da imagem e com seu tamanho
 			var rect = new gamejs.Rect(this.relativePosition(), this.tipo.img.getSize());
 			
-			// If mouse is inside rect
+			// Se o mouse está deste retângulo
 			if (rect.collidePoint(pos)) {
 				return true;
 			}else{
@@ -86,47 +93,118 @@ function main() {
 		};
 		
 		this.posCollideMask = function(pos){
-			// If the pos is inside the rect
+			// Se a posição do mouse está dentro do retângulo
 			if(this.posCollideRect(pos)){
-				// Calc mouse relative position to image
+				// Calcula a posição do mouse relativa à imagem
 				var relative = $v.subtract(pos, this.relativePosition());
-				// If the mask haves active pixel at position
+				// Se a máscara tem pixel ativo na posição
 				if ((new pixelcollision.Mask(this.tipo.img)).getAt(relative[0], relative[1])) {
 					return true;
 				}else{
-					// If does not collides the mask
+					// Se o cursor não colide com a máscara
 					return false;
 				}
 			}else{
-				// If isn't inside the rect
+				// Se não está dentro do retângulo
+				return false;
+			}
+		};
+        
+    }
+    
+    /**
+     * formas geometricas
+     */
+    function Botao(x, y, img) {
+    	var me = this; // Armazena o próprio objeto dentro de uma variável para poder ser usado dentro de métodos
+        this.x = x;
+        this.y = y;
+        this.img = gamejs.image.load(img);
+        
+        this.position = function() {
+        	return [me.x, me.y];
+        };
+		
+		this.posCollideRect = function(pos){
+			// Cria um retângulo na posição do botão
+			var rect = new gamejs.Rect(this.position(),this.img.getSize());
+			
+			// Se o mouse está dentro deste retângulo
+	        if (rect.collidePoint(pos)){
+	            return true;
+	        }else{
+	        	return false;
+	        }
+		};
+		
+		this.posCollideMask = function(pos){
+			// Se a posição do mouse está dentro do retângulo
+			if(this.posCollideRect(pos)){
+				// Calcula a posição do mouse relativa à imagem
+				var relative = $v.subtract(pos, this.position());
+				// Se a máscara tem pixel ativo na posição
+				if ((new pixelcollision.Mask(this.img)).getAt(relative[0], relative[1])) {
+					return true;
+				}else{
+					// Se o cursor não colide com a máscara
+					return false;
+				}
+			}else{
+				// Se não está dentro do retângulo
 				return false;
 			}
 		};
         
     }
 
-    tipos[0] = new Tipo("novo",'./geos/tri.png');
-    
+	// --- CONTROLLER
+	
+	// Posiciona o centro do campo no centro da tela
+	fieldPos = $v.divide(display.getSize(), 3);
+	
+	function createGeo(tipo){
+		var x = Math.floor(Math.random()*50) - fieldPos[0] + display.getSize()[0] / 3;
+		var y = Math.floor(Math.random()*50) - fieldPos[1] + display.getSize()[1] / 3;
+		geos[geos.length] = new Geo(x,y,tipo);
+	}
+	
+	botoes[0].onClick = function(){
+		createGeo(tipos[0]);
+	};
+	
+	botoes[1].onClick = function(){
+		createGeo(tipos[1]);
+	};
     
     gamejs.event.onMouseDown(function (event) {
 		var StopBreak = {};
 		var accepted = false;
 		
 		// Event Button add On click
-        var buttonAdd = new gamejs.Rect([btAddPos[0],btAddPos[1]],btAdd.getSize());
-        if (buttonAdd.collidePoint(event.pos)){
-            var relative = $v.subtract(event.pos, [btAddPos[0],btAddPos[1]]);
-            if (mBtAdd.getAt(relative[0],relative[1])){
-            	accepted = true;
-               geos[geos.length] = new Geo(Math.floor(Math.random()*50),Math.floor(Math.random()*50),tipos[0]);
-            }
-        }
+		try{
+			// Para cada Botão
+			for(var i = botoes.length-1 ; i>= 0; i--){
+				// Se mouse está sobre este botão
+				if(botoes[i].posCollideMask(event.pos)){
+					// O evento está aceito
+					accepted = true;
+					// Se o botão tem função de clique
+               		if(typeof botoes[i].onClick === 'function'){
+               			botoes[i].onClick();
+               		}
+					throw StopBreak;
+				}
+			};
+		}
+		catch(e){
+		}
 			
 		try{
-			//geos.forEach(function(geo, i){
+			// Para cada Geos
 			for(var i = geos.length-1 ; i>= 0; i--){
-				// If the first geo collides the cursor
+				// Se está clicando nele
 				if(geos[i].posCollideMask(event.pos)){
+					// Segura ele
 					dragging = true;
 					lastMousePos = event.pos;
 					dragObject = "geos";
@@ -140,10 +218,11 @@ function main() {
 		}
 		catch(e){
 		}
-        
+
+		// Se o evento não foi aceito por ninguém        
         if(!accepted){
+        	// Presume que está clicando no campo 
         	lastMousePos = event.pos;
-        	mouseOriginClick = [event.pos.x,event.pos.y] ;
         	dragging = true;
         	dragObject = "field";
         }
@@ -178,6 +257,7 @@ function main() {
         }
     });
 
+	// --- VIEW
 
     gamejs.onTick(function () {
         // Limpa a tela
@@ -208,10 +288,12 @@ function main() {
 		var bSize = 4;
 		gamejs.graphics.rect(display, "#cecedc", (new gamejs.Rect([bSize, bSize], [display.getSize()[0]-2*bSize,display.getSize()[1]-2*bSize])), 2*bSize);
 		
-		// Mostra o bot�o de adicionar
-        display.blit(btAdd, btAddPos);
+		// Para cada botão, mostra
+		botoes.forEach(function (a, i){
+			display.blit(a.img, a.position());			
+		});
 		
-		// Se est� segurando alguma forma, mostra um texto
+		// Se está segurando alguma forma, mostra um texto
         if (dragging) {
             display.blit(font.render("Dragging the image", '#ff0000'), [300, 20]);
         }
@@ -221,6 +303,7 @@ function main() {
 
 gamejs.preload([
     './geos/tri.png',
+    './geos/square.png',
     './img/btnadd.png'
 ]);
 gamejs.ready(main);
