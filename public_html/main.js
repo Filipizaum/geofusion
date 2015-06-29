@@ -20,8 +20,6 @@ function main() {
     var btAdd = gamejs.image.load('./img/btnadd.png');
     // create image masks from surface
 
-    var mBtAdd = new pixelcollision.Mask(btAdd);
-    
     var fieldPos = [0,0]; // The screen position
     var gridWidth = 40;
 
@@ -56,8 +54,13 @@ function main() {
      * tipos geometricos
      */
     function Tipo(nome, img) {
+        var me = this;
         this.nome = nome;
         this.img = gamejs.image.load(img);
+        
+        this.getMask = function(){
+            return new pixelcollision.Mask(me.img);
+        };
     }
 
     /**
@@ -111,11 +114,55 @@ function main() {
 				return false;
 			}
 		};
+                
+                /**
+                 * Verifica se uma máscara dada uma distorção colide com a máscara do geo
+                 * @param {gamejs.Mask} mask
+                 * @param {type} offset
+                 * @returns {Boolean}
+                 */
+                this.maskCollideMask = function(mask, offset){
+                    return me.tipo.getMask().overlap(mask, offset);
+		};
+                
+                /**
+                 * Verifica se um retângulo dado uma distorção colide com a máscara
+                 * @param {pixelcollision.Mask} mask
+                 * @param {Array} offset
+                 * @returns {Boolean}
+                 */
+                this.rectCollideMask = function(mask, offset){
+                    return (me.tipo.getMask().overlapArea(mask, offset)>0);
+		};
+                
+                /**
+                 * Verifica se um geo colide com outro
+                 * @param {Geo} geo
+                 * @returns {Boolean}
+                 */
+                this.geoCollides = function(geo){
+                    var posRelativa = $v.subtract(geo.relativePosition(), me.relativePosition());
+                    return me.maskCollideMask(geo.tipo.getMask(), posRelativa);
+                };
+                
+                /**
+                 * Verifica se um geo colide com outro
+                 * @param {Geo} geo
+                 * @returns {Boolean}
+                 */
+                this.rectGeoCollides = function(geo){
+                    var posRelativa = $v.subtract(geo.relativePosition(), me.relativePosition());
+                    return me.rectCollideMask(geo.tipo.getMask(), posRelativa);
+                };
         
     }
     
     /**
-     * formas geometricas
+     * Classe de Botão
+     * @param {number} x
+     * @param {number} y
+     * @param {string} img
+     * @returns {main.Botao}
      */
     function Botao(x, y, img) {
     	var me = this; // Armazena o próprio objeto dentro de uma variável para poder ser usado dentro de métodos
@@ -156,18 +203,125 @@ function main() {
 				return false;
 			}
 		};
-        
+                
     }
 
 	// --- CONTROLLER
 	
 	// Posiciona o centro do campo no centro da tela
 	fieldPos = $v.divide(display.getSize(), 3);
+        
+        /**
+         * Verifica se uma forma colide com alguma forma da lista.
+         * @param {Geo} geo A forma que pretende ser testada
+         * @returns {Boolean}
+         */
+        var collideSomeGeo = function(geo){
+            var BreakException = {};
+            var result = false;
+            try{
+                geos.forEach(
+                    /**
+                     * @param {Geo} obj
+                     */
+                    function(obj){
+                        if (obj.geoCollides(geo)){
+                            result = true;
+                            throw BreakException;
+                        }
+                    }
+                );
+            }catch(e){}
+            return result;
+        };
+        
+        /**
+         * Verifica se uma forma colide com alguma forma da lista. A nível de Retângulo
+         * @param {Geo} geo A forma que pretende ser testada
+         * @returns {Boolean}
+         */
+        var collideSomeRectGeo = function(geo){
+            var BreakException = {};
+            var result = false;
+            try{
+                geos.forEach(
+                    /**
+                     * @param {Geo} obj
+                     */
+                    function(obj){
+                        if (obj.rectGeoCollides(geo)){
+                            result = true;
+                            throw BreakException;
+                        }
+                    }
+                );
+            }catch(e){}
+            return result;
+        };
 	
 	function createGeo(tipo){
-		var x = Math.floor(Math.random()*50) - fieldPos[0] + display.getSize()[0] / 3;
-		var y = Math.floor(Math.random()*50) - fieldPos[1] + display.getSize()[1] / 3;
-		geos[geos.length] = new Geo(x,y,tipo);
+            
+            // Variáveis responsáveis pela alteração da posição onde a forma 
+            // sera testada para ser inserida em um lugar onde não tem outra 
+            // forma. A ideia é que a posição a ser testada comece em um lugar 
+            // e se não der certo, seja testado em outros lugares, seguindo uma
+            // espiral. Esses valores colaboram para esta movimentação em espiral.
+            var gran = {
+                delta: 150, // O tamanho da grade do espiral, cada passo se move a essa distância
+                x: 0, // A posição x
+                y: 0, // A posição y
+                dir: 2, // Direção DCBE[0123] (2 = Baixo)
+                curStep: 0, // Passo atual, o espiral segue <lenSteps> passos antes de mudar de direção
+                lenStep: 1 // O tamanho do passo, incrementa 1 ao finalizar uma esquerda ou direita
+            };
+            
+            var xDistor = Math.floor(Math.random()*50);
+            var yDistor = Math.floor(Math.random()*50);
+            
+            do{
+		var x = xDistor - fieldPos[0] + display.getSize()[0] / 3 + gran.x * gran.delta;
+		var y = yDistor - fieldPos[1] + display.getSize()[1] / 3 + gran.y * gran.delta;
+                // Cria uma forma na posição
+                var auxGeo = new Geo(x,y,tipo);
+                
+                gran.curStep += 1;
+                
+                switch (gran.dir) {
+                    case 0:
+                        gran.y -= 1;
+                        if(gran.curStep >= gran.lenStep){
+                            gran.curStep = 0;
+                            gran.dir = 1;
+                        }
+                        break;
+                    case 1:
+                        gran.x += 1;
+                        if(gran.curStep >= gran.lenStep){
+                            gran.curStep = 0;
+                            gran.dir = 2;
+                            gran.lenStep +=1;
+                        }
+                        break;
+                    case 2:
+                        gran.y += 1;
+                        if(gran.curStep >= gran.lenStep){
+                            gran.curStep = 0;
+                            gran.dir = 3;
+                        }
+                        break;
+                    case 3:
+                        gran.x -= 1;
+                        if(gran.curStep >= gran.lenStep){
+                            gran.curStep = 0;
+                            gran.dir = 0;
+                            gran.lenStep +=1;
+                        }
+                        break;
+                }
+                
+            }while(collideSomeRectGeo(auxGeo));
+            // Adiciona a forma na lista
+            geos[geos.length] = auxGeo;
 	}
 	
 	botoes[0].onClick = function(){
