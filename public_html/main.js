@@ -45,10 +45,12 @@ function main() {
     // Declara os tipos	
     tipos[0] = new Tipo("novo",'./geos/tri.png');
     tipos[1] = new Tipo("novo",'./geos/square.png');
+    tipos[2] = new Tipo("novo",'./geos/penta.png');
 
     // Posiciona os botões
     botoes[0] = new Botao(30, 30, './img/btnadd.png');
     botoes[1] = new Botao(110, 30, './img/btnadd.png');
+    botoes[2] = new Botao(190, 30, './img/btnadd.png');
 	
     /**
      * tipos geometricos
@@ -175,6 +177,10 @@ function main() {
 	botoes[1].onClick = function(){
 		createGeo(tipos[1]);
 	};
+        
+        botoes[2].onClick = function(){
+		createGeo(tipos[2]);
+	};
     
     gamejs.event.onMouseDown(function (event) {
 		var StopBreak = {};
@@ -208,7 +214,17 @@ function main() {
 					dragging = true;
 					lastMousePos = event.pos;
 					dragObject = "geos";
-					geoDrag = i;
+                                        // Faz com que o elemento clicado seja o primeiro da fila
+                                        geos = geos.sort(
+                                                function(a, b){
+                                                    if(a===geos[i]){
+                                                        return 1;
+                                                    }else{
+                                                        return -1;
+                                                    }
+                                                }
+                                        );
+					geoDrag = geos.length-1;
 					accepted = true;
 					throw StopBreak;
 				}else{
@@ -304,6 +320,7 @@ function main() {
 gamejs.preload([
     './geos/tri.png',
     './geos/square.png',
+    './geos/penta.png',
     './img/btnadd.png'
 ]);
 gamejs.ready(main);
