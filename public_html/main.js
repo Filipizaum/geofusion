@@ -13,6 +13,39 @@ var gamejs = require('gamejs');
 var pixelcollision = require('gamejs/pixelcollision');
 var $v = require('gamejs/math/vectors');
 
+/**
+ * 
+ * @param {gamejs.graphics.surfaceArray} sa
+ * @param {number} brightness
+ * @returns {undefined}
+ */
+gamejs.graphics.clarifica = function(sa, brightness){
+    for(var y = 0; y < sa.getSize()[1]; y++){
+        for(var x = 0; x < sa.getSize()[0]; x++){
+            var color = [sa.get(x, y)[0]+brightness,sa.get(x, y)[1]+brightness, sa.get(x, y)[2]+brightness, sa.get(x, y)[3]];
+            sa.set(x, y, color);
+        }
+    }
+};
+
+/**
+ * 
+ * @param {gamejs.graphics.surfaceArray} sa
+ * @param {number} brightness
+ * @returns {undefined}
+ */
+gamejs.graphics.clarificaBordas = function(sa, brightness){
+    var filt = 80;
+    for(var y = 0; y < sa.getSize()[1]; y++){
+        for(var x = 0; x < sa.getSize()[0]; x++){
+            if ((sa.get(x, y)[0]<filt)&&(sa.get(x, y)[1]<filt)&&(sa.get(x, y)[2]<filt)) {
+                var color = [sa.get(x, y)[0]+brightness,sa.get(x, y)[1]+brightness, sa.get(x, y)[2]+brightness, sa.get(x, y)[3]]; 
+                sa.set(x, y, color);
+            }
+        }
+    }
+};
+
 function main() {
 
     var display = gamejs.display.getSurface();
@@ -41,9 +74,9 @@ function main() {
     // --- MODEL
 
     // Declara os tipos	
-    tipos[0] = new Tipo("novo",'./geos/tri.png');
-    tipos[1] = new Tipo("novo",'./geos/square.png');
-    tipos[2] = new Tipo("novo",'./geos/penta.png');
+    tipos[0] = new Tipo("Triângulo",'./geos/tri.png');
+    tipos[1] = new Tipo("Quadrado",'./geos/square.png');
+    tipos[2] = new Tipo("Pentágono",'./geos/penta.png');
 
     // Posiciona os botões
     botoes[0] = new Botao(30, 30, './img/btnadd.png');
@@ -71,6 +104,54 @@ function main() {
         this.x = x;
         this.y = y;
         this.tipo = tipo;
+        this.bright = {
+            impulsion: 10,
+            defaultImpulsion: 10,
+            current:0,
+            objective: 0,
+            standard: function(){
+                return this.objective === 0;
+            },
+            upToDate: function(){
+                return this.current === this.objective;
+            },
+            reset: function(impulsion){
+                if(impulsion) this.impulsion = impulsion;
+                this.objective = 0;
+            },
+            update: function(){
+                
+                if(this.objective>this.current){
+                    if(this.current+this.impulsion>this.objective){
+                        if(this.objective === 0){
+                            this.current = 0;
+                        }else{
+                            this.choose();
+                        }
+                    }else{
+                        this.current += this.impulsion;
+                    }
+                }else if(this.objective<this.current){
+                    if(this.current-this.impulsion<this.objective){
+                        if(this.objective === 0){
+                            this.current = 0;
+                        }else{
+                            this.choose();
+                        }
+                    }else{
+                        this.current -= this.impulsion;
+                    }
+                }else{
+                    if(this.objective>0){
+                        this.choose();
+                    }
+                }
+            },
+            choose: function(impulsion){
+                this.impulsion = (impulsion) ? impulsion:this.defaultImpulsion;
+                this.objective = Math.floor(Math.random()*100)+50;
+            }
+        };
         
         this.relativeX = function () {
 			return this.x+fieldPos[0];          
@@ -228,6 +309,42 @@ function main() {
                         if (obj.geoCollides(geo)){
                             result = true;
                             throw BreakException;
+                        }
+                    }
+                );
+            }catch(e){}
+            return result;
+        };
+        
+        /**
+         * Retorna o primeiro geo que colide na ordem do array
+         * @param {Geo} geo A forma que pretende ser testada
+         * @returns {Geo} A primeira geo que colide no array
+         */
+        var firstGeoCollision = function(geo, func){
+            var BreakException = {};
+            var result;
+            try{
+                var clone = geos.slice(0);
+                clone.sort(function(){return 1;});
+                clone.forEach(
+                    /**
+                     * @param {Geo} obj
+                     */
+                    function(obj){
+                        // Se o objeto analisado colide
+                        if (obj.geoCollides(geo)){
+                            // Se a função passada é uma função
+                            if(typeof func === 'function'){
+                                // Se o objeto encontrado não passa pela função
+                                if(!func(obj)){
+                                    // Continua prourando
+                                    return;
+                                }
+                            }
+                            result = obj;
+                            throw BreakException;
+                            
                         }
                     }
                 );
@@ -451,9 +568,19 @@ function main() {
 		
 		// Para cara geos, pinta na sua posição mais a posição do campo
         geos.forEach(function (a, i){
-            display.blit(a.tipo.img, [a.x + fieldPos[0],a.y + fieldPos[1]]);
+            var img = a.tipo.img.clone();
+            
+            // Se o brilho da figura não é o brilho normal
+            if((!a.bright.upToDate())||(!a.bright.standard())){
+                a.bright.update();
+                var sur = new gamejs.graphics.SurfaceArray(img);
+                gamejs.graphics.clarifica(sur, a.bright.current);
+                gamejs.graphics.blitArray(img, sur);
+            }
+            
+            display.blit(img, [a.x + fieldPos[0],a.y + fieldPos[1]]);
         });
-		
+        
 		// Pinta as bordas que ficam acima das formas
 		var bSize = 4;
 		gamejs.graphics.rect(display, "#cecedc", (new gamejs.Rect([bSize, bSize], [display.getSize()[0]-2*bSize,display.getSize()[1]-2*bSize])), 2*bSize);
@@ -463,10 +590,38 @@ function main() {
 			display.blit(a.img, a.position());			
 		});
 		
-		// Se está segurando alguma forma, mostra um texto
-        if (dragging) {
-            display.blit(font.render("Dragging the image", '#ff0000'), [300, 20]);
+        // Se está segurando alguma forma
+        if(typeof geoDrag === 'number'){
+            // Pega a forma mais alta que colide
+            var topGeo = firstGeoCollision(geos[geoDrag], function(g){
+                return g!==geos[geoDrag]; // Verifica uma forma que não é a que ele está segurando
+            });
+            // Se colide com alguma forma
+            if(topGeo){
+                // Se a geo a fundir não está brilhando, brilha
+                if(topGeo.bright.standard()){
+                    topGeo.bright.choose(10);
+                }
+                // Se a geo segurada não está brilhando, brilha
+                if(geos[geoDrag].bright.standard()){
+                    geos[geoDrag].bright.choose(10);
+                }
+                display.blit(font.render("Am cima de "+topGeo.tipo.nome, '#ff0000'), [300, 20]);
+                // Para cada forma que não é a segurada ou a desejada, reseta o brilho
+                geos.filter(function(a){
+                    if((a!==topGeo)&&(a!==geos[geoDrag])){return true;}
+                }).forEach(function(a){
+                    a.bright.reset(40);
+                });
+            }else{
+                // Se não colide com ninguém, cancela o brilho de todos os geos
+                geos.forEach(function(a){
+                    a.bright.reset(40);
+                });
+            }
+            
         }
+
     });
 }
 ;
