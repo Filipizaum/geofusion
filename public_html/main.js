@@ -56,12 +56,11 @@ function main() {
     var fieldPos = [0,0]; // The screen position
     var gridWidth = 40;
 
-    var btAddPos = [30,30];
     var font = new gamejs.font.Font('20px monospace');
     var dragging = false;
     var dragObject;
 	var geoDrag;
-    var lastMousePos = [];
+    var lastMousePos = []; // Rect, ou seja um array de 2 posições [x, y], indica a última posição do mouse no evento anterios
     var geos = [];
     var tipos = [];
     var botoes = [];
@@ -69,7 +68,7 @@ function main() {
 	
 	var fusoes = [];
 	
-	fusoes [0] = 'a';
+	fusoes[0] = 'a';
 
     // --- MODEL
 
@@ -82,7 +81,22 @@ function main() {
     botoes[0] = new Botao(30, 30, './img/btnadd.png');
     botoes[1] = new Botao(110, 30, './img/btnadd.png');
     botoes[2] = new Botao(190, 30, './img/btnadd.png');
-	
+    
+    /**
+     * Parte Sonora
+     */
+    
+    // O jogo pode tocar até 9 sons simultâneos
+    gamejs.audio.setNumChannels(9);
+    
+    // Lista de sons
+    var sounds = [];
+    // Som de fusão
+    sounds[0] = new gamejs.audio.Sound('./sound/fusion.ogg');
+    sounds[1] = new gamejs.audio.Sound('./sound/backmusic.ogg');
+    
+    sounds[1].play(true);
+    
     /**
      * tipos geometricos
      */
@@ -218,7 +232,7 @@ function main() {
                 
                 /**
                  * Verifica se um geo colide com outro
-                 * @param {Geo} geo
+                 * @param {main.Geo} geo
                  * @returns {Boolean}
                  */
                 this.geoCollides = function(geo){
@@ -228,7 +242,7 @@ function main() {
                 
                 /**
                  * Verifica se um geo colide com outro
-                 * @param {Geo} geo
+                 * @param {main.Geo} geo
                  * @returns {Boolean}
                  */
                 this.rectGeoCollides = function(geo){
@@ -294,7 +308,7 @@ function main() {
         
         /**
          * Verifica se uma forma colide com alguma forma da lista.
-         * @param {Geo} geo A forma que pretende ser testada
+         * @param {main.Geo} geo A forma que pretende ser testada
          * @returns {Boolean}
          */
         var collideSomeGeo = function(geo){
@@ -303,7 +317,7 @@ function main() {
             try{
                 geos.forEach(
                     /**
-                     * @param {Geo} obj
+                     * @param {main.Geo} obj
                      */
                     function(obj){
                         if (obj.geoCollides(geo)){
@@ -318,8 +332,8 @@ function main() {
         
         /**
          * Retorna o primeiro geo que colide na ordem do array
-         * @param {Geo} geo A forma que pretende ser testada
-         * @returns {Geo} A primeira geo que colide no array
+         * @param {main.Geo} geo A forma que pretende ser testada
+         * @returns {main.Geo} A primeira geo que colide no array
          */
         var firstGeoCollision = function(geo, func){
             var BreakException = {};
@@ -329,7 +343,7 @@ function main() {
                 clone.sort(function(){return 1;});
                 clone.forEach(
                     /**
-                     * @param {Geo} obj
+                     * @param {main.Geo} obj
                      */
                     function(obj){
                         // Se o objeto analisado colide
@@ -353,8 +367,26 @@ function main() {
         };
         
         /**
+         * 
+         * @returns {main.Geo}
+         */
+        var getTopGeo = function(fun){
+            return firstGeoCollision(geos[geoDrag], function(g){
+                // Filtra também pela função passada nessa função
+                var filter;
+                if(typeof(fun)==='function'){
+                    filter = fun(g);
+                }else{
+                    // Se não passou nenhuma função, simplesmente não filtra
+                    filter = true;
+                }
+                return g!==geos[geoDrag] && filter; // Verifica uma forma que não é a que ele está segurando
+            });
+        };
+        
+        /**
          * Verifica se uma forma colide com alguma forma da lista. A nível de Retângulo
-         * @param {Geo} geo A forma que pretende ser testada
+         * @param {main.Geo} geo A forma que pretende ser testada
          * @returns {Boolean}
          */
         var collideSomeRectGeo = function(geo){
@@ -363,7 +395,7 @@ function main() {
             try{
                 geos.forEach(
                     /**
-                     * @param {Geo} obj
+                     * @param {main.Geo} obj
                      */
                     function(obj){
                         if (obj.rectGeoCollides(geo)){
@@ -441,6 +473,24 @@ function main() {
             geos[geos.length] = auxGeo;
 	}
 	
+        /**
+         * Verifica se duas formas se fundem
+         * @param {main.Geo} a
+         * @param {main.Geo} b
+         * @returns {Boolean}
+         */
+        function getFusion(a, b){
+            console.log('getFusion');
+            if(a.type === b.type){
+                console.log('returned true');
+                return true;
+            }else{
+                console.log('returned false');
+                return false;
+            }
+            
+        }
+        
 	botoes[0].onClick = function(){
 		createGeo(tipos[0]);
 	};
@@ -475,36 +525,42 @@ function main() {
 		}
 		catch(e){
 		}
-			
-		try{
-			// Para cada Geos
-			for(var i = geos.length-1 ; i>= 0; i--){
-				// Se está clicando nele
-				if(geos[i].posCollideMask(event.pos)){
-					// Segura ele
-					dragging = true;
-					lastMousePos = event.pos;
-					dragObject = "geos";
-                                        // Faz com que o elemento clicado seja o primeiro da fila
-                                        geos = geos.sort(
-                                                function(a, b){
-                                                    if(a===geos[i]){
-                                                        return 1;
-                                                    }else{
-                                                        return -1;
-                                                    }
-                                                }
-                                        );
-					geoDrag = geos.length-1;
-					accepted = true;
-					throw StopBreak;
-				}else{
-					dragging = false;
-				}
-			};
-		}
-		catch(e){
-		}
+                
+                // Se o evento não foi aceito por ninguém        
+                if (!accepted) {
+                    try {
+                        // Para cada Geos
+                        for (var i = geos.length - 1; i >= 0; i--) {
+                            // Se está clicando nele
+                            if (geos[i].posCollideMask(event.pos)) {
+                                // Segura ele
+                                dragging = true;
+                                lastMousePos = event.pos;
+                                dragObject = "geos";
+                                // Faz com que o elemento clicado seja o primeiro da fila
+                                geos = geos.sort(
+                                        function (a, b) {
+                                            if (a === geos[i]) {
+                                                return 1;
+                                            } else {
+                                                return -1;
+                                            }
+                                        }
+                                );
+                                geoDrag = geos.length - 1;
+                                accepted = true;
+                                throw StopBreak;
+                            } else {
+                                dragging = false;
+                            }
+                        }
+                        ;
+                    }
+                    catch (e) {
+                    }
+                }
+
+		
 
 		// Se o evento não foi aceito por ninguém        
         if(!accepted){
@@ -517,7 +573,16 @@ function main() {
     });
     
     gamejs.event.onMouseUp(function (event) {
+        // Se estava segurando alguma forma que funde com a que estava em cima
+//        if(getFusion(geos[geoDrag], getTopGeo())){
+//            
+//        }
+
+        sounds[0].play();
+        
+        // Não está mais segurando nada
         dragging = false;
+        
     });
 
     gamejs.event.onMouseMotion(function (event) {
@@ -593,8 +658,8 @@ function main() {
         // Se está segurando alguma forma
         if(typeof geoDrag === 'number'){
             // Pega a forma mais alta que colide
-            var topGeo = firstGeoCollision(geos[geoDrag], function(g){
-                return g!==geos[geoDrag]; // Verifica uma forma que não é a que ele está segurando
+            var topGeo = getTopGeo(function(geo){
+                return (typeof(getFusion(geo, geos[geoDrag])) !== 'undefined');
             });
             // Se colide com alguma forma
             if(topGeo){
@@ -630,6 +695,10 @@ gamejs.preload([
     './geos/tri.png',
     './geos/square.png',
     './geos/penta.png',
-    './img/btnadd.png'
+    './img/btnadd.png',
+    // Audios
+    './sound/fusion.ogg',
+    './sound/backmusic.ogg'
+    
 ]);
 gamejs.ready(main);
