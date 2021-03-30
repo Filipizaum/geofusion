@@ -90,12 +90,13 @@ function main() {
     gamejs.audio.setNumChannels(9);
     
     // Lista de sons
-    var sounds = [];
+    var sounds = {};
     // Som de fusão
-    sounds[0] = new gamejs.audio.Sound('./sound/fusion.ogg');
-    sounds[1] = new gamejs.audio.Sound('./sound/backmusic.ogg');
+    sounds['fusion'] = new gamejs.audio.Sound('./sound/fusion.ogg');
+    sounds['back'] = new gamejs.audio.Sound('./sound/backmusic.ogg');
+	sounds['add'] = new gamejs.audio.Sound('./sound/add.wav');
     
-    sounds[1].play(true);
+    sounds['back'].play(true);
     
     /**
      * tipos geometricos
@@ -578,7 +579,7 @@ function main() {
 //            
 //        }
 
-        sounds[0].play();
+        sounds['add'].play();
         
         // Não está mais segurando nada
         dragging = false;
@@ -698,7 +699,8 @@ gamejs.preload([
     './img/btnadd.png',
     // Audios
     './sound/fusion.ogg',
-    './sound/backmusic.ogg'
+    './sound/backmusic.ogg',
+    './sound/add.wav',
     
 ]);
 gamejs.ready(main);
