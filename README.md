@@ -3,7 +3,7 @@ Jogo de formas geométricas que tem o objetivo de descobrir novas formas geomét
 
 # Como executar
 
-Entre na pasta do projeto e execute o seguinte ccommando:
+Entre na pasta geofusion/public_html e execute o seguinte ccommando:
 
 `php -S localhost:8089`
 
